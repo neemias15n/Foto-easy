@@ -1210,24 +1210,17 @@ document.getElementById("removeBgBtn")?.addEventListener("click", async () => {
       // Atualiza o texto do botão
       btn.textContent = `Processando ${i + 1}/${images.length}...`;
       
-      // Converte o DataURL para Blob diretamente (evita problemas CORS)
-      const base64Data = imageData.originalDataURL.split(',')[1];
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'image/png' });
-      const formData = new FormData();
-      formData.append("image_file", blob, imageData.fileName);
-      formData.append("size", "auto");
-
-      // Usa proxy próprio no Vercel para contornar restrições CORS
+      // Envia dados como JSON para o proxy (mais compatível com Vercel)
       const proxyUrl = "/api/removebg";
       const resp = await fetch(proxyUrl, {
         method: "POST",
-        body: formData
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          imageData: imageData.originalDataURL,
+          fileName: imageData.fileName
+        })
       });
 
       if (!resp.ok) {
