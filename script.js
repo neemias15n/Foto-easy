@@ -1223,16 +1223,11 @@ document.getElementById("removeBgBtn")?.addEventListener("click", async () => {
       formData.append("image_file", blob, imageData.fileName);
       formData.append("size", "auto");
 
-      // Usa proxy CORS para contornar restrições da API remove.bg
-      const proxyUrl = "https://cors-anywhere.herokuapp.com/https://api.remove.bg/v1.0/removebg";
+      // Usa proxy próprio no Vercel para contornar restrições CORS
+      const proxyUrl = "/api/removebg";
       const resp = await fetch(proxyUrl, {
         method: "POST",
-        headers: { 
-          "X-Api-Key": REMOVE_BG_API_KEY,
-          "X-Requested-With": "XMLHttpRequest"
-        },
-        body: formData,
-        mode: 'cors'
+        body: formData
       });
 
       if (!resp.ok) {
@@ -1269,7 +1264,7 @@ document.getElementById("removeBgBtn")?.addEventListener("click", async () => {
   } catch (err) {
     console.error(err);
     if (err.message.includes('Failed to fetch') || err.message.includes('CORS')) {
-      alert(`Erro de CORS: A API remove.bg tem restrições de CORS.\n\nSoluções:\n1. Ative o proxy CORS: visite https://cors-anywhere.herokuapp.com/corsdemo e clique "Request temporary access"\n2. Ou use uma ferramenta externa para remover fundo e re-upload`);
+      alert(`Erro de CORS: Problema com o proxy da API.\n\nSoluções:\n1. Verifique se o deploy foi feito corretamente no Vercel\n2. Ou use uma ferramenta externa para remover fundo e re-upload`);
     } else {
       alert(`Falha ao remover fundo: ${err.message}`);
     }
