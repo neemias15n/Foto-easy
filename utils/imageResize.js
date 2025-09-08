@@ -11,11 +11,8 @@ export async function resizeImage(file, maxWidth = 1024, maxHeight = 1024) {
         canvas.height = img.height * scale;
         let ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => {
-          // Cria um novo arquivo para enviar
-          const resizedFile = new File([blob], file.name, { type: 'image/jpeg' });
-          resolve(resizedFile);
-        }, 'image/jpeg', 0.8);
+        // Retorna o DataURL diretamente
+        resolve(canvas.toDataURL('image/png', 0.92));
       };
       img.src = e.target.result;
     };
