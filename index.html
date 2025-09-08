@@ -45,8 +45,12 @@
           <div class="card stack">
             <div class="input">
               <label>Carregar fotos</label>
-              <input type="file" id="fileInput" accept="image/*" class="file" multiple />
+              <div class="row-center">
+                <input type="file" id="fileInput" accept="image/*" class="file" multiple />
+                <button class="btn" id="cameraBtn">📷 Tirar foto</button>
+              </div>
               <div class="hint">💡 Dica: Você pode arrastar imagens de outra aba diretamente aqui! Selecione múltiplas fotos para polaroids.</div>
+              <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" />
             </div>
             <div class="input">
               <label>Fotos carregadas</label>
@@ -231,5 +235,15 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script type="module" src="script.js"></script>
+  <script>
+    document.getElementById('cameraBtn').addEventListener('click', () => {
+      document.getElementById('cameraInput').click();
+    });
+    // Redireciona o evento do cameraInput para o mesmo tratamento do fileInput
+    document.getElementById('cameraInput').addEventListener('change', (e) => {
+      document.getElementById('fileInput').dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('fileInput').files = e.target.files;
+    });
+  </script>
 </body>
 </html>
