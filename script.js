@@ -82,8 +82,12 @@ document.getElementById('fileInput').addEventListener('change', async e => {
   const files = Array.from(e.target.files);
   if (files.length === 0) return;
   for (const file of files) {
-    const resized = await resizeImage(file, 1024, 1024);
-    await addImageToCollection(resized);
+    const resizedDataUrl = await resizeImage(file, 1024, 1024);
+    await addImageToCollection({
+      name: file.name,
+      size: file.size,
+      dataUrl: resizedDataUrl
+    });
   }
   // Se for a primeira imagem, carrega no editor
   if (images.length === files.length) {
@@ -95,25 +99,18 @@ function fileToDataURL(file) { return new Promise(r => { const fr = new FileRead
 function loadImageToEditor(dataUrl) { return new Promise(r => { const img = new Image(); img.onload = () => { srcImg = img; r(); drawEditor(); }; img.src = dataUrl; }); }
 
 // Função para adicionar imagem à coleção
-async function addImageToCollection(file) {
-  if (!file || !file.type.startsWith('image/')) {
-    alert('Por favor, selecione um arquivo de imagem válido.');
-    return;
-  }
-  
+async function addImageToCollection({ name, size, dataUrl }) {
   try {
-    const dataUrl = await fileToDataURL(file);
     const imageData = {
       id: Date.now() + Math.random(),
       originalDataURL: dataUrl,
       workingDataURL: dataUrl,
-      fileName: file.name,
-      fileSize: file.size
+      fileName: name,
+      fileSize: size
     };
-    
     images.push(imageData);
     updateImagePreviews();
-    console.log(`Imagem adicionada: ${file.name}`);
+    console.log(`Imagem adicionada: ${name}`);
   } catch (error) {
     console.error('Erro ao processar imagem:', error);
     alert('Erro ao processar a imagem. Tente novamente.');
@@ -207,8 +204,12 @@ async function processImageFile(file) {
     return;
   }
   try {
-    const resized = await resizeImage(file, 1024, 1024);
-    await addImageToCollection(resized);
+    const resizedDataUrl = await resizeImage(file, 1024, 1024);
+    await addImageToCollection({
+      name: file.name,
+      size: file.size,
+      dataUrl: resizedDataUrl
+    });
     // Se for a primeira imagem, carrega no editor
     if (images.length === 1) {
       await loadImageInEditor(0);
