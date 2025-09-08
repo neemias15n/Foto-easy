@@ -1710,6 +1710,301 @@ async function renderizarTextoComEmojis(svg, texto, bbox, slotIndex, emojiMap, o
 
 // Sistema de emojis otimizado para tamanhos maiores
 
+/************************************
+ * Sistema de Autenticação e Histórico *
+ ************************************/
+let currentUser = null;
+let photoHistory = [];
+
+// Inicializa o sistema de autenticação
+function initAuthSystem() {
+  // Verifica se o Firebase está carregado
+  if (!window.firebaseAuth) {
+    console.log('Firebase não carregado ainda, aguardando...');
+    setTimeout(initAuthSystem, 1000);
+    return;
+  }
+
+  // Monitora mudanças no estado de autenticação
+  window.onAuthStateChanged(window.firebaseAuth, (user) => {
+    currentUser = user;
+    updateAuthUI();
+    if (user) {
+      loadPhotoHistory();
+    } else {
+      photoHistory = [];
+      updateHistoryUI();
+    }
+  });
+
+  // Event listeners para botões de autenticação
+  document.getElementById('loginBtn').addEventListener('click', showLoginModal);
+  document.getElementById('googleLoginBtn').addEventListener('click', signInWithGoogle);
+  document.getElementById('logoutBtn').addEventListener('click', signOut);
+  document.getElementById('closeLoginModal').addEventListener('click', hideLoginModal);
+  document.getElementById('modalGoogleLogin').addEventListener('click', signInWithGoogle);
+  document.getElementById('registerBtn').addEventListener('click', toggleRegisterMode);
+  document.getElementById('loginForm').addEventListener('submit', handleEmailLogin);
+  document.getElementById('saveCurrentPhotos').addEventListener('click', saveCurrentPhotos);
+
+  // Fecha modal ao clicar fora
+  document.getElementById('loginModal').addEventListener('click', (e) => {
+    if (e.target.id === 'loginModal') {
+      hideLoginModal();
+    }
+  });
+}
+
+// Atualiza a interface de autenticação
+function updateAuthUI() {
+  const loginSection = document.getElementById('loginSection');
+  const userSection = document.getElementById('userSection');
+  const historySection = document.getElementById('historySection');
+  const userEmail = document.getElementById('userEmail');
+
+  if (currentUser) {
+    loginSection.style.display = 'none';
+    userSection.style.display = 'flex';
+    historySection.style.display = 'block';
+    userEmail.textContent = currentUser.email;
+  } else {
+    loginSection.style.display = 'flex';
+    userSection.style.display = 'none';
+    historySection.style.display = 'none';
+  }
+}
+
+// Mostra o modal de login
+function showLoginModal() {
+  document.getElementById('loginModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+// Esconde o modal de login
+function hideLoginModal() {
+  document.getElementById('loginModal').style.display = 'none';
+  document.body.style.overflow = 'auto';
+  document.getElementById('loginForm').reset();
+}
+
+// Alterna entre modo de login e registro
+function toggleRegisterMode() {
+  const submitBtn = document.querySelector('#loginForm button[type="submit"]');
+  const registerBtn = document.getElementById('registerBtn');
+  const isRegister = submitBtn.textContent === 'Criar Conta';
+  
+  if (isRegister) {
+    submitBtn.textContent = 'Entrar';
+    registerBtn.textContent = 'Criar Conta';
+  } else {
+    submitBtn.textContent = 'Criar Conta';
+    registerBtn.textContent = 'Já tenho conta';
+  }
+}
+
+// Lida com login por email
+async function handleEmailLogin(e) {
+  e.preventDefault();
+  
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  const isRegister = document.querySelector('#loginForm button[type="submit"]').textContent === 'Criar Conta';
+  
+  try {
+    if (isRegister) {
+      await window.createUserWithEmailAndPassword(window.firebaseAuth, email, password);
+      alert('Conta criada com sucesso!');
+    } else {
+      await window.signInWithEmailAndPassword(window.firebaseAuth, email, password);
+    }
+    hideLoginModal();
+  } catch (error) {
+    console.error('Erro na autenticação:', error);
+    let message = 'Erro na autenticação. Tente novamente.';
+    
+    switch (error.code) {
+      case 'auth/user-not-found':
+        message = 'Usuário não encontrado.';
+        break;
+      case 'auth/wrong-password':
+        message = 'Senha incorreta.';
+        break;
+      case 'auth/email-already-in-use':
+        message = 'Este email já está em uso.';
+        break;
+      case 'auth/weak-password':
+        message = 'A senha deve ter pelo menos 6 caracteres.';
+        break;
+      case 'auth/invalid-email':
+        message = 'Email inválido.';
+        break;
+    }
+    
+    alert(message);
+  }
+}
+
+// Login com Google
+async function signInWithGoogle() {
+  try {
+    await window.signInWithPopup(window.firebaseAuth, window.googleProvider);
+    hideLoginModal();
+  } catch (error) {
+    console.error('Erro no login com Google:', error);
+    if (error.code === 'auth/popup-closed-by-user') {
+      // Usuário fechou o popup, não é um erro real
+      return;
+    }
+    alert('Erro no login com Google: ' + error.message);
+  }
+}
+
+// Logout
+async function signOut() {
+  try {
+    await window.signOut(window.firebaseAuth);
+  } catch (error) {
+    console.error('Erro no logout:', error);
+    alert('Erro ao fazer logout: ' + error.message);
+  }
+}
+
+// Salva as fotos atuais no histórico
+async function saveCurrentPhotos() {
+  if (!currentUser) {
+    alert('Você precisa estar logado para salvar fotos.');
+    return;
+  }
+
+  if (images.length === 0) {
+    alert('Nenhuma foto para salvar.');
+    return;
+  }
+
+  try {
+    const historyItem = {
+      id: Date.now().toString(),
+      userId: currentUser.uid,
+      name: `Fotos ${new Date().toLocaleDateString('pt-BR')}`,
+      date: new Date().toISOString(),
+      images: images.map(img => ({
+        originalDataURL: img.originalDataURL,
+        workingDataURL: img.workingDataURL,
+        fileName: img.fileName,
+        fileSize: img.fileSize
+      }))
+    };
+
+    // Salva no localStorage (simulando banco de dados)
+    const userHistory = JSON.parse(localStorage.getItem(`photoHistory_${currentUser.uid}`) || '[]');
+    userHistory.unshift(historyItem);
+    
+    // Mantém apenas os últimos 20 itens
+    if (userHistory.length > 20) {
+      userHistory.splice(20);
+    }
+    
+    localStorage.setItem(`photoHistory_${currentUser.uid}`, JSON.stringify(userHistory));
+    photoHistory = userHistory;
+    updateHistoryUI();
+    
+    alert(`✅ ${images.length} foto(s) salva(s) no histórico!`);
+  } catch (error) {
+    console.error('Erro ao salvar fotos:', error);
+    alert('Erro ao salvar fotos no histórico.');
+  }
+}
+
+// Carrega o histórico de fotos do usuário
+function loadPhotoHistory() {
+  if (!currentUser) return;
+
+  try {
+    const userHistory = JSON.parse(localStorage.getItem(`photoHistory_${currentUser.uid}`) || '[]');
+    photoHistory = userHistory;
+    updateHistoryUI();
+  } catch (error) {
+    console.error('Erro ao carregar histórico:', error);
+    photoHistory = [];
+  }
+}
+
+// Atualiza a interface do histórico
+function updateHistoryUI() {
+  const historyList = document.getElementById('historyList');
+  
+  if (photoHistory.length === 0) {
+    historyList.innerHTML = '<div style="text-align: center; color: #64748b; padding: 20px;">Nenhuma foto salva ainda</div>';
+    return;
+  }
+
+  historyList.innerHTML = photoHistory.map(item => `
+    <div class="history-item" data-id="${item.id}">
+      <img src="${item.images[0]?.originalDataURL || item.images[0]?.workingDataURL || ''}" alt="Preview">
+      <div class="history-info">
+        <div class="history-name">${item.name}</div>
+        <div class="history-date">${new Date(item.date).toLocaleString('pt-BR')}</div>
+      </div>
+      <div class="history-actions">
+        <button class="load-btn" onclick="loadPhotoFromHistory('${item.id}')" title="Carregar fotos">↩️</button>
+        <button class="delete-btn" onclick="deletePhotoFromHistory('${item.id}')" title="Excluir">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Carrega fotos do histórico
+function loadPhotoFromHistory(historyId) {
+  const historyItem = photoHistory.find(item => item.id === historyId);
+  if (!historyItem) return;
+
+  // Limpa as imagens atuais
+  images.length = 0;
+  
+  // Carrega as imagens do histórico
+  images.push(...historyItem.images.map(img => ({
+    id: Date.now() + Math.random(),
+    originalDataURL: img.originalDataURL,
+    workingDataURL: img.workingDataURL,
+    fileName: img.fileName,
+    fileSize: img.fileSize
+  })));
+
+  // Atualiza a interface
+  updateImagePreviews();
+  
+  // Carrega a primeira imagem no editor
+  if (images.length > 0) {
+    loadImageInEditor(0);
+  }
+
+  alert(`✅ ${images.length} foto(s) carregada(s) do histórico!`);
+}
+
+// Exclui foto do histórico
+function deletePhotoFromHistory(historyId) {
+  if (!confirm('Tem certeza que deseja excluir este item do histórico?')) return;
+
+  try {
+    photoHistory = photoHistory.filter(item => item.id !== historyId);
+    localStorage.setItem(`photoHistory_${currentUser.uid}`, JSON.stringify(photoHistory));
+    updateHistoryUI();
+    alert('Item excluído do histórico!');
+  } catch (error) {
+    console.error('Erro ao excluir do histórico:', error);
+    alert('Erro ao excluir item do histórico.');
+  }
+}
+
+// Inicializa o sistema quando a página carrega
+document.addEventListener('DOMContentLoaded', () => {
+  initAuthSystem();
+});
+
+// Torna as funções globais para uso nos event listeners
+window.loadPhotoFromHistory = loadPhotoFromHistory;
+window.deletePhotoFromHistory = deletePhotoFromHistory;
+
 // Botão de teste para o sistema do Spotify
 document.getElementById('testSpotifyBtn')?.addEventListener('click', async () => {
   console.log('=== TESTE DO SPOTIFY ===');
