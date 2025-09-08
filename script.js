@@ -77,14 +77,14 @@ window.addEventListener('mouseup', () => { isPanning = false });
 document.getElementById('zoom').addEventListener('input', e => { scale = parseFloat(e.target.value); drawEditor(); });
 document.getElementById('centerBtn').addEventListener('click', centerImage);
 // Sistema de múltiplas imagens
+import { resizeImage } from './utils/imageResize.js';
 document.getElementById('fileInput').addEventListener('change', async e => { 
   const files = Array.from(e.target.files);
   if (files.length === 0) return;
-  
   for (const file of files) {
-    await addImageToCollection(file);
+    const resized = await resizeImage(file, 1024, 1024);
+    await addImageToCollection(resized);
   }
-  
   // Se for a primeira imagem, carrega no editor
   if (images.length === files.length) {
     await loadImageInEditor(0);
@@ -206,15 +206,13 @@ async function processImageFile(file) {
     alert('Por favor, selecione um arquivo de imagem válido.');
     return;
   }
-  
   try {
-    await addImageToCollection(file);
-    
+    const resized = await resizeImage(file, 1024, 1024);
+    await addImageToCollection(resized);
     // Se for a primeira imagem, carrega no editor
     if (images.length === 1) {
       await loadImageInEditor(0);
     }
-    
     console.log('Imagem processada via drag-drop');
   } catch (error) {
     console.error('Erro ao processar imagem:', error);
