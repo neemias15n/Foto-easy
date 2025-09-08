@@ -8,6 +8,36 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Poppins:wght@600;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    
+    // Configuração do Firebase (substitua pelos seus dados)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      authDomain: "foto-easy-XXXXX.firebaseapp.com",
+      projectId: "foto-easy-XXXXX",
+      storageBucket: "foto-easy-XXXXX.appspot.com",
+      messagingSenderId: "123456789",
+      appId: "1:123456789:web:abcdefghijklmnop"
+    };
+    
+    // Inicializa Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const googleProvider = new GoogleAuthProvider();
+    
+    // Torna disponível globalmente
+    window.firebaseAuth = auth;
+    window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+    window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+    window.signInWithPopup = signInWithPopup;
+    window.GoogleAuthProvider = GoogleAuthProvider;
+    window.signOut = signOut;
+    window.onAuthStateChanged = onAuthStateChanged;
+    window.googleProvider = googleProvider;
+  </script>
 </head>
 <body>
   <div class="shell">
@@ -29,6 +59,16 @@
       </div>
       <div>
         <h1>Foto Easy</h1>
+      </div>
+      <div class="auth-section">
+        <div id="loginSection" class="auth-controls">
+          <button class="btn auth-btn" id="loginBtn">Entrar</button>
+          <button class="btn auth-btn google-btn" id="googleLoginBtn">Google</button>
+        </div>
+        <div id="userSection" class="user-info" style="display: none;">
+          <span id="userEmail" class="user-email"></span>
+          <button class="btn auth-btn logout-btn" id="logoutBtn">Sair</button>
+        </div>
       </div>
     </header>
 
@@ -232,6 +272,47 @@
     </section>
 
     <div class="footer">Feito com ❤️ — Tudo preparado para impressão 10×15cm</div>
+  </div>
+
+  <!-- Modal de Login -->
+  <div id="loginModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Entrar no Foto Easy</h2>
+        <button class="close-btn" id="closeLoginModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="loginForm">
+          <div class="input-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" required placeholder="seu@email.com">
+          </div>
+          <div class="input-group">
+            <label for="password">Senha:</label>
+            <input type="password" id="password" required placeholder="Sua senha">
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn primary">Entrar</button>
+            <button type="button" class="btn" id="registerBtn">Criar Conta</button>
+          </div>
+        </form>
+        <div class="divider-text">ou</div>
+        <button class="btn google-btn full-width" id="modalGoogleLogin">
+          <span class="google-icon">G</span> Entrar com Google
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seção de Histórico de Fotos -->
+  <div id="historySection" class="history-panel" style="display: none;">
+    <div class="history-header">
+      <h3>📸 Histórico de Fotos</h3>
+      <button class="btn" id="saveCurrentPhotos">Salvar Fotos Atuais</button>
+    </div>
+    <div id="historyList" class="history-list">
+      <!-- Fotos salvas aparecerão aqui -->
+    </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
