@@ -436,6 +436,37 @@ svg {
   box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
 }
 
+.upload-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.upload-controls .file {
+  flex: 1;
+  min-width: 200px;
+}
+
+.camera-btn {
+  background: #10b981;
+  color: white;
+  border-color: transparent;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.camera-btn:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.camera-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
 .image-previews {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
