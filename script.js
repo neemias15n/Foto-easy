@@ -138,20 +138,20 @@ async function loadImageInEditor(index) {
 function updateImagePreviews() {
   const container = document.getElementById('imagePreviews');
   container.innerHTML = '';
-  
   images.forEach((imageData, index) => {
     const preview = document.createElement('div');
     preview.className = `image-preview ${index === currentImageIndex ? 'active' : ''}`;
     preview.onclick = () => loadImageInEditor(index);
-    
+
     const img = document.createElement('img');
-    img.src = imageData.workingDataURL;
-    img.alt = imageData.fileName;
-    
+    // Garante que sempre será um DataURL válido
+    img.src = imageData.workingDataURL || imageData.originalDataURL || imageData.dataUrl || '';
+    img.alt = imageData.fileName || '';
+
     const info = document.createElement('div');
     info.className = 'preview-info';
-    info.textContent = `${index + 1}. ${imageData.fileName}`;
-    
+    info.textContent = `${index + 1}. ${imageData.fileName || ''}`;
+
     const removeBtn = document.createElement('button');
     removeBtn.className = 'remove-btn';
     removeBtn.innerHTML = '×';
@@ -159,7 +159,7 @@ function updateImagePreviews() {
       e.stopPropagation();
       removeImage(index);
     };
-    
+
     preview.appendChild(img);
     preview.appendChild(info);
     preview.appendChild(removeBtn);
