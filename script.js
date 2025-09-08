@@ -263,6 +263,169 @@ setupDragAndDrop(editorCanvas);
 const imagePreviews = document.getElementById('imagePreviews');
 setupDragAndDrop(imagePreviews);
 
+// Funcionalidade da câmera
+document.getElementById('cameraBtn').addEventListener('click', async () => {
+  try {
+    // Verifica se o navegador suporta getUserMedia
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert('Seu navegador não suporta captura de câmera. Use o botão de upload de arquivos.');
+      return;
+    }
+
+    // Solicita acesso à câmera
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { 
+        facingMode: 'environment', // Prefere câmera traseira no celular
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      } 
+    });
+
+    // Cria um modal para mostrar a câmera
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    `;
+
+    const video = document.createElement('video');
+    video.style.cssText = `
+      max-width: 90%;
+      max-height: 70%;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    `;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.srcObject = stream;
+
+    const controls = document.createElement('div');
+    controls.style.cssText = `
+      display: flex;
+      gap: 16px;
+      margin-top: 20px;
+    `;
+
+    const captureBtn = document.createElement('button');
+    captureBtn.textContent = '📸 Capturar';
+    captureBtn.style.cssText = `
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = '❌ Cancelar';
+    cancelBtn.style.cssText = `
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+
+    controls.appendChild(captureBtn);
+    controls.appendChild(cancelBtn);
+    modal.appendChild(video);
+    modal.appendChild(controls);
+
+    document.body.appendChild(modal);
+
+    // Função para fechar o modal e parar a câmera
+    const closeModal = () => {
+      stream.getTracks().forEach(track => track.stop());
+      document.body.removeChild(modal);
+    };
+
+    // Event listeners
+    cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    captureBtn.addEventListener('click', async () => {
+      try {
+        // Cria um canvas para capturar a foto
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Define o tamanho do canvas baseado no vídeo
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Desenha o frame atual do vídeo no canvas
+        ctx.drawImage(video, 0, 0);
+        
+        // Converte para blob
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+        
+        // Cria um arquivo a partir do blob
+        const file = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        
+        // Processa a imagem usando a função existente
+        await processImageFile(file);
+        
+        // Fecha o modal
+        closeModal();
+        
+        console.log('Foto capturada com sucesso!');
+        
+      } catch (error) {
+        console.error('Erro ao capturar foto:', error);
+        alert('Erro ao capturar foto. Tente novamente.');
+      }
+    });
+
+    // Hover effects
+    captureBtn.addEventListener('mouseenter', () => {
+      captureBtn.style.background = '#059669';
+      captureBtn.style.transform = 'translateY(-2px)';
+    });
+    captureBtn.addEventListener('mouseleave', () => {
+      captureBtn.style.background = '#10b981';
+      captureBtn.style.transform = 'translateY(0)';
+    });
+
+    cancelBtn.addEventListener('mouseenter', () => {
+      cancelBtn.style.background = '#dc2626';
+      cancelBtn.style.transform = 'translateY(-2px)';
+    });
+    cancelBtn.addEventListener('mouseleave', () => {
+      cancelBtn.style.background = '#ef4444';
+      cancelBtn.style.transform = 'translateY(0)';
+    });
+
+  } catch (error) {
+    console.error('Erro ao acessar câmera:', error);
+    if (error.name === 'NotAllowedError') {
+      alert('Acesso à câmera negado. Por favor, permita o acesso à câmera e tente novamente.');
+    } else if (error.name === 'NotFoundError') {
+      alert('Nenhuma câmera encontrada. Use o botão de upload de arquivos.');
+    } else {
+      alert('Erro ao acessar câmera: ' + error.message);
+    }
+  }
+});
+
 
 /********************************************
  * Gabarito 3×4 (10×15 vertical) — SVG base *
