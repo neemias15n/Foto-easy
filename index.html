@@ -44,8 +44,14 @@
         <div class="col">
           <div class="card stack">
             <div class="input">
-              <label>Carregar fotos</label>
-              <input type="file" accept="image/*" multiple>
+              <label>
+  <input type="file" accept="image/*" style="display: none;" id="uploadInput" multiple>
+  <button type="button" onclick="document.getElementById('uploadInput').click()">Fazer upload</button>
+</label>
+<label>
+  <input type="file" accept="image/*" capture="environment" style="display: none;" id="cameraInput">
+  <button type="button" onclick="document.getElementById('cameraInput').click()">Usar câmera</button>
+</label>
               <div class="hint">💡 Dica: Você pode arrastar imagens de outra aba diretamente aqui! Selecione múltiplas fotos para polaroids.</div>
             </div>
             <div class="input">
