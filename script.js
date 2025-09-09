@@ -2,7 +2,7 @@
  * Firebase Configuration   *
  ****************************/
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut as firebaseSignOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
 import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, orderBy, limit, query } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
@@ -30,7 +30,7 @@ window.signInWithEmailAndPassword = signInWithEmailAndPassword;
 window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
 window.signInWithPopup = signInWithPopup;
 window.GoogleAuthProvider = GoogleAuthProvider;
-window.signOut = signOut;
+window.signOut = firebaseSignOut;
 window.onAuthStateChanged = onAuthStateChanged;
 window.firebaseStorage = storage;
 window.firebaseStorageRef = storageRef;
@@ -1905,7 +1905,7 @@ function initAuthSystem() {
   // Event listeners para botões de autenticação
   document.getElementById('loginBtn').addEventListener('click', showLoginModal);
   document.getElementById('googleLoginBtn').addEventListener('click', signInWithGoogle);
-  document.getElementById('logoutBtn').addEventListener('click', signOut);
+  document.getElementById('logoutBtn').addEventListener('click', handleLogout);
   
   // Teste da integração com Google Sheets
   window.testGoogleSheets = async () => {
@@ -2058,7 +2058,7 @@ async function signInWithGoogle() {
 }
 
 // Logout
-async function signOut() {
+async function handleLogout() {
   try {
     await window.signOut(window.firebaseAuth);
   } catch (error) {

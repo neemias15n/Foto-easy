@@ -26,7 +26,8 @@ export async function saveCurrentPhotosToTemp(images, userId = null) {
       workingDataURL: img.workingDataURL,
       fileName: img.fileName,
       fileSize: img.fileSize,
-      currentIndex: images.indexOf(img) === currentImageIndex
+      // Garante que não quebre se currentImageIndex não existir neste escopo
+      currentIndex: (typeof currentImageIndex !== 'undefined') ? (images.indexOf(img) === currentImageIndex) : false
     }));
 
     const sessionId = await tempDB.saveTempPhotos(photosData, userId);
