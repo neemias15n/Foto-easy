@@ -120,6 +120,4 @@ class GoogleSheetsManager {
 const googleSheetsManager = new GoogleSheetsManager();
 
 // Exportar para uso em outros arquivos
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { GoogleSheetsManager, googleSheetsManager };
-}
+export { GoogleSheetsManager, googleSheetsManager };
