@@ -1905,7 +1905,7 @@ function initAuthSystem() {
   // Event listeners para botões de autenticação
   document.getElementById('loginBtn').addEventListener('click', showLoginModal);
   document.getElementById('googleLoginBtn').addEventListener('click', signInWithGoogle);
-  document.getElementById('logoutBtn').addEventListener('click', signOut);
+  document.getElementById('logoutBtn').addEventListener('click', handleLogout);
   
   // Teste da integração com Google Sheets
   window.testGoogleSheets = async () => {
@@ -2058,7 +2058,7 @@ async function signInWithGoogle() {
 }
 
 // Logout
-async function signOut() {
+async function handleLogout() {
   try {
     await window.signOut(window.firebaseAuth);
   } catch (error) {
