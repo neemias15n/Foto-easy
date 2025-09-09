@@ -1,4 +1,53 @@
 /****************************
+ * Firebase Configuration   *
+ ****************************/
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
+import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, orderBy, limit, query } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCygm1A81KkS1Il-JPzG4Q9G9aW8SmFODY",
+  authDomain: "foto-easy-d3e10.firebaseapp.com",
+  projectId: "foto-easy-d3e10",
+  storageBucket: "foto-easy-d3e10.firebasestorage.app",
+  messagingSenderId: "705843938886",
+  appId: "1:705843938886:web:7efa59e3ccb2c92b38ec47",
+  measurementId: "G-EEMP2NN75G"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const storage = getStorage(app);
+const firestore = getFirestore(app);
+const googleProvider = new GoogleAuthProvider();
+
+// Make Firebase available globally
+window.firebaseAuth = auth;
+window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+window.signInWithPopup = signInWithPopup;
+window.GoogleAuthProvider = GoogleAuthProvider;
+window.signOut = signOut;
+window.onAuthStateChanged = onAuthStateChanged;
+window.firebaseStorage = storage;
+window.firebaseStorageRef = storageRef;
+window.firebaseUploadBytes = uploadBytes;
+window.firebaseGetDownloadURL = getDownloadURL;
+window.firebaseFirestore = firestore;
+window.firebaseCollection = collection;
+window.firebaseAddDoc = addDoc;
+window.firebaseGetDocs = getDocs;
+window.firebaseDoc = doc;
+window.firebaseDeleteDoc = deleteDoc;
+window.firebaseOrderBy = orderBy;
+window.firebaseLimit = limit;
+window.firebaseQuery = query;
+window.googleProvider = googleProvider;
+
+/****************************
  * Constantes e utilidades  *
  ****************************/
 const EDITOR_W = 1181, EDITOR_H = 1772; // 10×15cm @300dpi
