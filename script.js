@@ -107,6 +107,7 @@ import {
 } from './utils/databaseHelpers.js';
 import firebaseStorageManager from './utils/firebaseStorage.js';
 import historySync from './utils/historySync.js';
+import { googleSheetsManager } from './utils/googleSheets.js';
 document.getElementById('fileInput').addEventListener('change', async e => { 
   const files = Array.from(e.target.files);
   if (files.length === 0) return;
@@ -1840,6 +1841,11 @@ function initAuthSystem() {
     currentUser = user;
     updateAuthUI();
     if (user) {
+      // Salvar dados do usuário no Google Sheets
+      googleSheetsManager.saveUser({
+        uid: user.uid,
+        email: user.email
+      });
       loadPhotoHistory();
     } else {
       photoHistory = [];
@@ -1851,6 +1857,22 @@ function initAuthSystem() {
   document.getElementById('loginBtn').addEventListener('click', showLoginModal);
   document.getElementById('googleLoginBtn').addEventListener('click', signInWithGoogle);
   document.getElementById('logoutBtn').addEventListener('click', signOut);
+  
+  // Teste da integração com Google Sheets
+  window.testGoogleSheets = async () => {
+    try {
+      console.log('🧪 Testando Google Sheets...');
+      const result = await googleSheetsManager.saveUser({
+        uid: 'test-user-123',
+        email: 'test@example.com'
+      });
+      console.log('✅ Teste Google Sheets:', result);
+      alert('✅ Google Sheets funcionando!');
+    } catch (error) {
+      console.error('❌ Erro no teste Google Sheets:', error);
+      alert('❌ Erro no Google Sheets: ' + error.message);
+    }
+  };
   document.getElementById('closeLoginModal').addEventListener('click', hideLoginModal);
   document.getElementById('modalGoogleLogin').addEventListener('click', signInWithGoogle);
   document.getElementById('registerBtn').addEventListener('click', toggleRegisterMode);
@@ -2022,8 +2044,11 @@ async function saveCurrentPhotos() {
       }))
     };
 
-    // Salva usando o sistema de sincronização
+    // Salva usando o sistema de sincronização (Firebase + fallback)
     await historySync.saveHistoryItem(historyItem, currentUser.uid);
+    
+    // Salva também no Google Sheets
+    await googleSheetsManager.saveHistoryItem(historyItem);
     
     // Atualiza a interface
     await loadHistoryUI();
@@ -2040,8 +2065,21 @@ async function loadPhotoHistory() {
   if (!currentUser) return;
 
   try {
+    // Carrega do Firebase/Firestore primeiro
     const userHistory = await historySync.loadHistory(currentUser.uid);
-    photoHistory = userHistory;
+    
+    // Carrega também do Google Sheets para sincronização
+    const sheetsHistory = await googleSheetsManager.loadUserHistory(currentUser.uid);
+    
+    // Combina e remove duplicatas (prioriza Firebase)
+    const combinedHistory = [...userHistory];
+    sheetsHistory.forEach(sheetItem => {
+      if (!combinedHistory.find(item => item.id === sheetItem.id)) {
+        combinedHistory.push(sheetItem);
+      }
+    });
+    
+    photoHistory = combinedHistory;
     updateHistoryUI();
   } catch (error) {
     console.error('Erro ao carregar histórico:', error);
