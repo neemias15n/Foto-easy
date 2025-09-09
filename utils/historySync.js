@@ -97,7 +97,8 @@ class HistorySync {
     if (!this.isFirestoreAvailable || !userId) return;
 
     try {
-      const historyRef = this.db.collection('users').doc(userId).collection('history');
+      // v9 modular: usa helpers globais expostos por script.js
+      const historyRef = window.firebaseCollection(this.db, 'users', userId, 'history');
       
       // Adiciona timestamp de sincronização
       const itemWithSync = {
@@ -106,7 +107,7 @@ class HistorySync {
         syncId: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       };
       
-      await historyRef.add(itemWithSync);
+      await window.firebaseAddDoc(historyRef, itemWithSync);
       console.log('✅ Item salvo no Firestore');
     } catch (error) {
       console.error('Erro ao salvar no Firestore:', error);
@@ -154,14 +155,20 @@ class HistorySync {
     if (!this.isFirestoreAvailable || !userId) return [];
 
     try {
-      const historyRef = this.db.collection('users').doc(userId).collection('history');
-      const snapshot = await historyRef.orderBy('date', 'desc').limit(20).get();
+      // v9 modular: collection + query + orderBy + limit + getDocs
+      const historyRef = window.firebaseCollection(this.db, 'users', userId, 'history');
+      const q = window.firebaseQuery(
+        historyRef,
+        window.firebaseOrderBy('date', 'desc'),
+        window.firebaseLimit(20)
+      );
+      const snapshot = await window.firebaseGetDocs(q);
       
       const history = [];
-      snapshot.forEach(doc => {
+      snapshot.forEach(docSnap => {
         history.push({
-          id: doc.id,
-          ...doc.data()
+          id: docSnap.id,
+          ...docSnap.data()
         });
       });
       
@@ -294,8 +301,9 @@ class HistorySync {
     if (!this.isFirestoreAvailable || !userId) return;
 
     try {
-      const historyRef = this.db.collection('users').doc(userId).collection('history');
-      await historyRef.doc(itemId).delete();
+      // v9 modular: deleteDoc(doc(db, ...))
+      const itemRef = window.firebaseDoc(this.db, 'users', userId, 'history', itemId);
+      await window.firebaseDeleteDoc(itemRef);
       console.log('✅ Item removido do Firestore');
     } catch (error) {
       console.error('Erro ao remover do Firestore:', error);
