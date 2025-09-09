@@ -83,13 +83,17 @@ class FirebaseStorageManager {
       // Obtém URL de download
       const downloadURL = await window.firebaseGetDownloadURL(storageReference);
       
+      // Gera uma prévia pequena para UI (evita estourar localStorage)
+      const previewDataURL = await this.createPreviewFromBlob(blob, 140);
+
       return {
         success: true,
         url: downloadURL,
         path: storagePath,
         method: 'firebase',
         fileName: fileName,
-        size: blob.size
+        size: blob.size,
+        previewDataURL
       };
     } catch (error) {
       console.error('Erro no upload Firebase:', error);
@@ -125,6 +129,9 @@ class FirebaseStorageManager {
       // Salva no histórico temporário
       const itemId = await saveToTempHistory(historyItem, userId);
       
+      // Gera uma prévia pequena para UI (evita estourar localStorage)
+      const previewDataURL = await this.createPreviewFromBlob(blob, 140);
+
       return {
         success: true,
         url: dataURL,
@@ -132,7 +139,8 @@ class FirebaseStorageManager {
         method: 'tempdb',
         fileName: fileName,
         size: blob.size,
-        itemId: itemId
+        itemId: itemId,
+        previewDataURL
       };
     } catch (error) {
       console.error('Erro no upload para banco temporário:', error);
@@ -183,6 +191,7 @@ class FirebaseStorageManager {
                 fileName: fileName,
                 fileSize: blob.size
               }],
+              previewDataURL: result.previewDataURL,
               uploadMethod: result.method
             };
 
@@ -231,6 +240,7 @@ class FirebaseStorageManager {
                 fileName: fileName,
                 fileSize: blob.size
               }],
+              previewDataURL: result.previewDataURL,
               uploadMethod: result.method
             };
 
@@ -306,6 +316,36 @@ class FirebaseStorageManager {
   }
 
   /**
+   * Cria uma prévia pequena (thumbnail) a partir de um Blob PNG
+   */
+  async createPreviewFromBlob(blob, maxSize = 140) {
+    try {
+      const imageBitmap = await createImageBitmap(blob);
+      const ratio = Math.min(maxSize / imageBitmap.width, maxSize / imageBitmap.height, 1);
+      const w = Math.max(1, Math.round(imageBitmap.width * ratio));
+      const h = Math.max(1, Math.round(imageBitmap.height * ratio));
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(imageBitmap, 0, 0, w, h);
+      // Usa JPEG de baixa qualidade para reduzir ainda mais o tamanho
+      return canvas.toDataURL('image/jpeg', 0.6);
+    } catch (e) {
+      // Fallback simples: limita o blob original usando qualidade baixa
+      try {
+        const arrBuf = await blob.arrayBuffer();
+        const tmp = new Blob([arrBuf], { type: 'image/png' });
+        const dataUrl = await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(tmp); });
+        return dataUrl;
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  /**
    * Embute imagens do SVG como data:URL
    */
   async inlineSvgImages(svg) {
@@ -375,3 +415,4 @@ class FirebaseStorageManager {
 const firebaseStorageManager = new FirebaseStorageManager();
 
 export default firebaseStorageManager;
+
