@@ -2073,19 +2073,19 @@ function updateHistoryUI() {
                     '📷 Fotos';
     
     return `
-      <div class="history-item" data-id="${item.id}">
-        <img src="${item.images[0]?.originalDataURL || item.images[0]?.workingDataURL || ''}" alt="Preview">
-        <div class="history-info">
+    <div class="history-item" data-id="${item.id}">
+      <img src="${item.images[0]?.originalDataURL || item.images[0]?.workingDataURL || ''}" alt="Preview">
+      <div class="history-info">
           <div class="history-type">${itemType}</div>
-          <div class="history-name">${item.name}</div>
-          <div class="history-date">${new Date(item.date).toLocaleString('pt-BR')}</div>
+        <div class="history-name">${item.name}</div>
+        <div class="history-date">${new Date(item.date).toLocaleString('pt-BR')}</div>
           ${syncInfo}
-        </div>
-        <div class="history-actions">
-          ${item.type === 'sheet3x4' ? `<button class="download-btn" onclick="downloadSheetFromHistory('${item.id}')" title="Baixar folha 3x4">⬇️</button>` : `<button class="load-btn" onclick="loadPhotoFromHistory('${item.id}')" title="Carregar fotos">↩️</button>`}
-          <button class="delete-btn" onclick="deletePhotoFromHistory('${item.id}')" title="Excluir">🗑️</button>
-        </div>
       </div>
+      <div class="history-actions">
+          ${item.type === 'sheet3x4' ? `<button class="download-btn" onclick="downloadSheetFromHistory('${item.id}')" title="Baixar folha 3x4">⬇️</button>` : `<button class="load-btn" onclick="loadPhotoFromHistory('${item.id}')" title="Carregar fotos">↩️</button>`}
+        <button class="delete-btn" onclick="deletePhotoFromHistory('${item.id}')" title="Excluir">🗑️</button>
+      </div>
+    </div>
     `;
   }).join('');
 }
