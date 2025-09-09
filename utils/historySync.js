@@ -55,14 +55,39 @@ class HistorySync {
    */
   saveToLocalStorage(item, userId) {
     const userHistory = JSON.parse(localStorage.getItem(`photoHistory_${userId}`) || '[]');
-    userHistory.unshift(item);
+    // Compacta item para armazenar só metadados + preview pequeno
+    const compactItem = {
+      id: item.id,
+      userId: item.userId,
+      name: item.name,
+      date: item.date,
+      type: item.type,
+      // guarda a primeira imagem só como metadado (URL) e usa previewDataURL pequeno
+      images: item.images && item.images.length ? [{
+        fileName: item.images[0].fileName,
+        fileSize: item.images[0].fileSize,
+        originalDataURL: undefined,
+        workingDataURL: undefined
+      }] : [],
+      previewDataURL: item.previewDataURL || null,
+      uploadMethod: item.uploadMethod,
+      syncedAt: item.syncedAt
+    };
+    userHistory.unshift(compactItem);
     
     // Mantém apenas os últimos 20 itens
     if (userHistory.length > 20) {
       userHistory.splice(20);
     }
     
-    localStorage.setItem(`photoHistory_${userId}`, JSON.stringify(userHistory));
+    // Protege contra quota exceeded
+    try {
+      localStorage.setItem(`photoHistory_${userId}`, JSON.stringify(userHistory));
+    } catch (e) {
+      // Se estourar, remove o item mais antigo e tenta novamente
+      userHistory.pop();
+      try { localStorage.setItem(`photoHistory_${userId}`, JSON.stringify(userHistory)); } catch {}
+    }
   }
 
   /**
@@ -320,3 +345,4 @@ class HistorySync {
 const historySync = new HistorySync();
 
 export default historySync;
+
