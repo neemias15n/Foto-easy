@@ -99,7 +99,7 @@ class TempDatabase {
     if (!this.db) await this.init();
 
     const transaction = this.db.transaction(['tempPhotos'], 'readwrite');
-    const store = transaction.transaction.objectStore('tempPhotos');
+    const store = transaction.objectStore('tempPhotos');
 
     const photoData = {
       id: this.generateId(),
@@ -419,6 +419,7 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 export default tempDB;
+
 
 
 
