@@ -6,7 +6,7 @@
 class GoogleSheetsManager {
     constructor() {
         // URL do Web App do Google Apps Script
-        this.webAppUrl = 'https://script.google.com/macros/s/AKfycbwBLXg3Xg8Wmgf8-8pN88XMAxhnyM88vpPBlWEnzvIsOS0P1wuwlN5V9Y1b7j__nqWE/exec';
+               this.webAppUrl = 'https://script.google.com/macros/s/AKfycbyWkP9FX_rkE-5xq7NtPYd9Dd3HkQWKJ0MSWnIIhd8jcjpb52iJP-g93xINAMXdaLdk/exec';
         this.spreadsheetId = '1cSqiVdZcM5zdjBAxg1q8-zeW-KhYJ1lC6CUg3nZdD-g';
     }
 
@@ -121,3 +121,4 @@ const googleSheetsManager = new GoogleSheetsManager();
 
 // Exportar para uso em outros arquivos
 export { GoogleSheetsManager, googleSheetsManager };
+
