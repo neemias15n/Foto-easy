@@ -123,8 +123,8 @@ function centerImage() { tx = 0; ty = 0; scale = 1; drawEditor(); }
 editorCanvas.addEventListener('mousedown', e => { isPanning = true; lx = e.offsetX; ly = e.offsetY });
 editorCanvas.addEventListener('mousemove', e => { if (!isPanning) return; tx += (e.offsetX - lx); ty += (e.offsetY - ly); lx = e.offsetX; ly = e.offsetY; drawEditor(); });
 window.addEventListener('mouseup', () => { isPanning = false });
-document.getElementById('zoom').addEventListener('entrada', e => {
-  escala = parseFloat(e.target.value);
+document.getElementById('zoom').addEventListener('input', e => {
+  scale = parseFloat(e.target.value);
   drawEditor();
 });
 document.getElementById('centerBtn').addEventListener('click', () => {
