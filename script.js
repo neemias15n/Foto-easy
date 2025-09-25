@@ -123,37 +123,20 @@ function centerImage() { tx = 0; ty = 0; scale = 1; drawEditor(); }
 editorCanvas.addEventListener('mousedown', e => { isPanning = true; lx = e.offsetX; ly = e.offsetY });
 editorCanvas.addEventListener('mousemove', e => { if (!isPanning) return; tx += (e.offsetX - lx); ty += (e.offsetY - ly); lx = e.offsetX; ly = e.offsetY; drawEditor(); });
 window.addEventListener('mouseup', () => { isPanning = false });
-document.getElementById('zoom').addEventListener('input', e => { 
-  scale = parseFloat(e.target.value); 
-  drawEditor(); 
-  saveEditorSettingsAuto();
+document.getElementById('zoom').addEventListener('entrada', e => {
+  escala = parseFloat(e.target.value);
+  drawEditor();
 });
 document.getElementById('centerBtn').addEventListener('click', () => {
   centerImage();
-  saveEditorSettingsAuto();
 });
 
 // Adiciona listener para cor de fundo
 document.getElementById('bgColor')?.addEventListener('change', () => {
   drawEditor();
-  saveEditorSettingsAuto();
 });
 // Sistema de múltiplas imagens
 import { resizeImage } from './utils/imageResize.js';
-import { 
-  saveCurrentPhotosToTemp, 
-  loadPhotosFromTemp, 
-  listTempPhotoSessions,
-  autoSavePhotos,
-  autoLoadPhotos,
-  saveEditorSettings,
-  getEditorSettings,
-  savePolaroidSettings,
-  getPolaroidSettings,
-  getTempDatabaseStats,
-  formatTimeRemaining,
-  isDatabaseAvailable
-} from './utils/databaseHelpers.js';
 import firebaseStorageManager from './utils/firebaseStorage.js';
 import historySync from './utils/historySync.js';
 import { googleSheetsManager } from './utils/googleSheets.js';
@@ -209,9 +192,6 @@ async function loadImageInEditor(index) {
   await loadImageToEditor(workingDataURL);
   centerImage();
   updateImagePreviews();
-  
-  // Salva configurações do editor automaticamente
-  saveEditorSettingsAuto();
   
   console.log(`Imagem ${index + 1} carregada no editor`);
 }
@@ -345,168 +325,41 @@ setupDragAndDrop(editorCanvas);
 const imagePreviews = document.getElementById('imagePreviews');
 setupDragAndDrop(imagePreviews);
 
-// Funcionalidade da câmera
-document.getElementById('cameraBtn').addEventListener('click', async () => {
-  try {
-    // Verifica se o navegador suporta getUserMedia
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert('Seu navegador não suporta captura de câmera. Use o botão de upload de arquivos.');
+// Funcionalidade da câmera nativa dos dispositivos
+const cameraInput = document.getElementById('cameraFileInput');
+const cameraBtn = document.getElementById('cameraBtn');
+if (cameraBtn && cameraInput) {
+  cameraBtn.addEventListener('click', () => {
+    try {
+      cameraInput.value = '';
+      cameraInput.click();
+    } catch (error) {
+      console.error('Erro ao abrir a câmera:', error);
+      alert('Não foi possível abrir a câmera do dispositivo. Use o botão de upload de arquivos.');
+    }
+  });
+cameraInput.addEventListener('change', async (event) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) {
       return;
     }
-
-    // Solicita acesso à câmera
-    const stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { 
-        facingMode: 'environment', // Prefere câmera traseira no celular
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      } 
-    });
-
-    // Cria um modal para mostrar a câmera
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.9);
-      z-index: 1000;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    `;
-
-    const video = document.createElement('video');
-    video.style.cssText = `
-      max-width: 90%;
-      max-height: 70%;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    `;
-    video.autoplay = true;
-    video.playsInline = true;
-    video.srcObject = stream;
-
-    const controls = document.createElement('div');
-    controls.style.cssText = `
-      display: flex;
-      gap: 16px;
-      margin-top: 20px;
-    `;
-
-    const captureBtn = document.createElement('button');
-    captureBtn.textContent = '📸 Capturar';
-    captureBtn.style.cssText = `
-      background: #10b981;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    `;
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = '❌ Cancelar';
-    cancelBtn.style.cssText = `
-      background: #ef4444;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    `;
-
-    controls.appendChild(captureBtn);
-    controls.appendChild(cancelBtn);
-    modal.appendChild(video);
-    modal.appendChild(controls);
-
-    document.body.appendChild(modal);
-
-    // Função para fechar o modal e parar a câmera
-    const closeModal = () => {
-      stream.getTracks().forEach(track => track.stop());
-      document.body.removeChild(modal);
-    };
-
-    // Event listeners
-    cancelBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeModal();
-    });
-
-    captureBtn.addEventListener('click', async () => {
-      try {
-        // Cria um canvas para capturar a foto
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Define o tamanho do canvas baseado no vídeo
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        // Desenha o frame atual do vídeo no canvas
-        ctx.drawImage(video, 0, 0);
-        
-        // Converte para blob
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-        
-        // Cria um arquivo a partir do blob
-        const file = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
-        
-        // Processa a imagem usando a função existente
+   try {
+      for (const file of files) {
         await processImageFile(file);
-        
-        // Fecha o modal
-        closeModal();
-        
-        console.log('Foto capturada com sucesso!');
-        
-      } catch (error) {
-        console.error('Erro ao capturar foto:', error);
-        alert('Erro ao capturar foto. Tente novamente.');
       }
-    });
-
-    // Hover effects
-    captureBtn.addEventListener('mouseenter', () => {
-      captureBtn.style.background = '#059669';
-      captureBtn.style.transform = 'translateY(-2px)';
-    });
-    captureBtn.addEventListener('mouseleave', () => {
-      captureBtn.style.background = '#10b981';
-      captureBtn.style.transform = 'translateY(0)';
-    });
-
-    cancelBtn.addEventListener('mouseenter', () => {
-      cancelBtn.style.background = '#dc2626';
-      cancelBtn.style.transform = 'translateY(-2px)';
-    });
-    cancelBtn.addEventListener('mouseleave', () => {
-      cancelBtn.style.background = '#ef4444';
-      cancelBtn.style.transform = 'translateY(0)';
-    });
-
-  } catch (error) {
-    console.error('Erro ao acessar câmera:', error);
-    if (error.name === 'NotAllowedError') {
-      alert('Acesso à câmera negado. Por favor, permita o acesso à câmera e tente novamente.');
-    } else if (error.name === 'NotFoundError') {
-      alert('Nenhuma câmera encontrada. Use o botão de upload de arquivos.');
-    } else {
-      alert('Erro ao acessar câmera: ' + error.message);
+    } catch (error) {
+      console.error('Erro ao importar foto da câmera:', error);
+      alert('Erro ao importar a foto capturada. Tente novamente.');
+    } finally {
+      cameraInput.value = '';
     }
-  }
 });
+} else if (cameraBtn) {
+  cameraBtn.addEventListener('click', () => {
+    alert('Captura pela câmera não está disponível neste dispositivo. Use o botão de upload.');
+  });
+}
+
 
 
 /********************************************
@@ -1017,7 +870,7 @@ document.getElementById('saveSheetToDb')?.addEventListener('click', async () => 
     await historySync.saveHistoryItem(result.historyItem, currentUser.uid);
     await loadHistoryUI();
     
-    const method = result.method === 'firebase' ? 'Firebase Storage' : 'Banco Temporário';
+    const method = result.method === 'firebase' ? 'Firebase Storage' : 'ImgBB';
     alert(`✅ Folha 3x4 salva no histórico (${method})!\n\nMétodo: ${method}\nArquivo: ${result.fileName}`);
     
   } catch (error) {
@@ -1423,7 +1276,7 @@ document.getElementById('savePolaroidToDb')?.addEventListener('click', async () 
     await historySync.saveHistoryItem(result.historyItem, currentUser.uid);
     await loadHistoryUI();
     
-    const method = result.method === 'firebase' ? 'Firebase Storage' : 'Banco Temporário';
+    const method = result.method === 'firebase' ? 'Firebase Storage' : 'ImgBB';
     alert(`✅ Polaroid salva no histórico (${method})!\n\nMétodo: ${method}\nArquivo: ${result.fileName}`);
     
   } catch (error) {
@@ -1698,10 +1551,7 @@ function addTextControlListeners() {
         const existingSvg = document.querySelector('#polaroidSvgWrap svg');
         if (existingSvg && workingDataURL) {
           montarPolaroid();
-        }
-        
-        // Salva configurações automaticamente
-        savePolaroidSettingsAuto();
+        }   
       });
     }
   });
@@ -1712,7 +1562,6 @@ function addTextControlListeners() {
     const element = document.getElementById(id);
     if (element) {
       element.addEventListener('input', () => {
-        savePolaroidSettingsAuto();
       });
     }
   });
@@ -1721,7 +1570,6 @@ function addTextControlListeners() {
   const modeInputs = document.querySelectorAll('input[name="polaroidMode"]');
   modeInputs.forEach(input => {
     input.addEventListener('change', () => {
-      savePolaroidSettingsAuto();
     });
   });
 }
@@ -2222,7 +2070,6 @@ async function deletePhotoFromHistory(historyId) {
 // Inicializa o sistema quando a página carrega
 document.addEventListener('DOMContentLoaded', () => {
   initAuthSystem();
-  initTempDatabaseUI();
 });
 
 // Torna as funções globais para uso nos event listeners
@@ -2236,505 +2083,6 @@ window.downloadSheetFromHistory = function(historyId) {
   a.download = item.images[0].fileName || 'folha-3x4.png';
   a.click();
 };
-
-// ===== SISTEMA DE BANCO DE DADOS TEMPORÁRIO =====
-
-// Variáveis para controle de auto-save
-let autoSaveInterval = null;
-let lastSaveTime = 0;
-const AUTO_SAVE_DELAY = 30000; // 30 segundos
-
-// Função para salvar configurações do editor automaticamente
-async function saveEditorSettingsAuto() {
-  if (!isDatabaseAvailable()) return;
-  
-  try {
-    const settings = {
-      zoom: scale,
-      tx: tx,
-      ty: ty,
-      bgColor: document.getElementById('bgColor')?.value || '#ffffff',
-      currentImageIndex: currentImageIndex
-    };
-    
-    await saveEditorSettings(settings, currentUser?.uid);
-  } catch (error) {
-    console.warn('Erro ao salvar configurações do editor:', error);
-  }
-}
-
-// Função para salvar configurações de polaroid automaticamente
-async function savePolaroidSettingsAuto() {
-  if (!isDatabaseAvailable()) return;
-  
-  try {
-    const settings = {
-      mode: document.querySelector('input[name="polaroidMode"]:checked')?.value || 'two',
-      txt1: document.getElementById('txt1')?.value || '',
-      txt2: document.getElementById('txt2')?.value || '',
-      txtSize: parseInt(document.getElementById('txtSize')?.value) || 300,
-      txtFont: document.getElementById('txtFont')?.value || 'Dancing Script, cursive',
-      txtAlign: document.getElementById('txtAlign')?.value || 'center',
-      txtUpper: document.getElementById('txtUpper')?.checked || false,
-      emojiSize: parseInt(document.getElementById('emojiSize')?.value) || 400,
-      spBg: document.getElementById('spBg')?.value || '#7C3AED',
-      spFg: document.getElementById('spFg')?.value || 'black'
-    };
-    
-    await savePolaroidSettings(settings, currentUser?.uid);
-  } catch (error) {
-    console.warn('Erro ao salvar configurações de polaroid:', error);
-  }
-}
-
-// Função para carregar configurações salvas
-async function loadSavedSettings() {
-  if (!isDatabaseAvailable()) return;
-  
-  try {
-    // Carrega configurações do editor
-    const editorSettings = await getEditorSettings(currentUser?.uid);
-    if (editorSettings) {
-      scale = editorSettings.zoom || 1;
-      tx = editorSettings.tx || 0;
-      ty = editorSettings.ty || 0;
-      
-      const bgColorInput = document.getElementById('bgColor');
-      if (bgColorInput) {
-        bgColorInput.value = editorSettings.bgColor || '#ffffff';
-      }
-      
-      const zoomSlider = document.getElementById('zoom');
-      if (zoomSlider) {
-        zoomSlider.value = scale;
-      }
-      
-      // Aplica as configurações se houver imagem carregada
-      if (workingDataURL) {
-        drawEditor();
-      }
-    }
-    
-    // Carrega configurações de polaroid
-    const polaroidSettings = await getPolaroidSettings(currentUser?.uid);
-    if (polaroidSettings) {
-      const modeInput = document.querySelector(`input[name="polaroidMode"][value="${polaroidSettings.mode}"]`);
-      if (modeInput) modeInput.checked = true;
-      
-      const txt1 = document.getElementById('txt1');
-      const txt1ce = document.getElementById('txt1ce');
-      if (txt1) txt1.value = polaroidSettings.txt1 || '';
-      if (txt1ce) txt1ce.textContent = polaroidSettings.txt1 || '';
-      
-      const txt2 = document.getElementById('txt2');
-      const txt2ce = document.getElementById('txt2ce');
-      if (txt2) txt2.value = polaroidSettings.txt2 || '';
-      if (txt2ce) txt2ce.textContent = polaroidSettings.txt2 || '';
-      
-      const txtSize = document.getElementById('txtSize');
-      const sizeValue = document.getElementById('sizeValue');
-      if (txtSize) {
-        txtSize.value = polaroidSettings.txtSize || 300;
-        if (sizeValue) sizeValue.textContent = (polaroidSettings.txtSize || 300) + 'px';
-      }
-      
-      const txtFont = document.getElementById('txtFont');
-      if (txtFont) txtFont.value = polaroidSettings.txtFont || 'Dancing Script, cursive';
-      
-      const txtAlign = document.getElementById('txtAlign');
-      if (txtAlign) txtAlign.value = polaroidSettings.txtAlign || 'center';
-      
-      const txtUpper = document.getElementById('txtUpper');
-      if (txtUpper) txtUpper.checked = polaroidSettings.txtUpper || false;
-      
-      const emojiSize = document.getElementById('emojiSize');
-      const emojiSizeValue = document.getElementById('emojiSizeValue');
-      if (emojiSize) {
-        emojiSize.value = polaroidSettings.emojiSize || 400;
-        if (emojiSizeValue) emojiSizeValue.textContent = (polaroidSettings.emojiSize || 400) + 'px';
-      }
-      
-      const spBg = document.getElementById('spBg');
-      if (spBg) spBg.value = polaroidSettings.spBg || '#7C3AED';
-      
-      const spFg = document.getElementById('spFg');
-      if (spFg) spFg.value = polaroidSettings.spFg || 'black';
-      
-      // Atualiza controles do Spotify
-      checkSpotifyControlsVisibility();
-    }
-    
-    console.log('Configurações carregadas do banco temporário');
-  } catch (error) {
-    console.warn('Erro ao carregar configurações:', error);
-  }
-}
-
-// Função para salvar fotos automaticamente
-async function autoSavePhotosToTemp() {
-  if (!isDatabaseAvailable() || images.length === 0) return;
-  
-  try {
-    const now = Date.now();
-    // Só salva se passou o tempo mínimo desde o último save
-    if (now - lastSaveTime < AUTO_SAVE_DELAY) return;
-    
-    await autoSavePhotos(images, currentUser?.uid, false);
-    lastSaveTime = now;
-    console.log('Auto-save executado');
-  } catch (error) {
-    console.warn('Erro no auto-save:', error);
-  }
-}
-
-// Inicia o sistema de auto-save
-function startAutoSave() {
-  if (autoSaveInterval) {
-    clearInterval(autoSaveInterval);
-  }
-  
-  // Salva a cada 2 minutos
-  autoSaveInterval = setInterval(() => {
-    autoSavePhotosToTemp();
-    saveEditorSettingsAuto();
-    savePolaroidSettingsAuto();
-  }, 120000);
-  
-  console.log('Sistema de auto-save iniciado');
-}
-
-// Para o sistema de auto-save
-function stopAutoSave() {
-  if (autoSaveInterval) {
-    clearInterval(autoSaveInterval);
-    autoSaveInterval = null;
-  }
-  console.log('Sistema de auto-save parado');
-}
-
-// Função para salvar sessão atual manualmente
-async function saveCurrentSession() {
-  if (!isDatabaseAvailable()) {
-    alert('Banco de dados não disponível neste navegador.');
-    return;
-  }
-  
-  if (images.length === 0) {
-    alert('Nenhuma foto para salvar.');
-    return;
-  }
-  
-  try {
-    const sessionId = await autoSavePhotos(images, currentUser?.uid, true);
-    
-    // Salva também as configurações
-    await saveEditorSettingsAuto();
-    await savePolaroidSettingsAuto();
-    
-    return sessionId;
-  } catch (error) {
-    console.error('Erro ao salvar sessão:', error);
-    alert('Erro ao salvar sessão: ' + error.message);
-  }
-}
-
-// Função para carregar sessão específica
-async function loadSession(sessionId) {
-  if (!isDatabaseAvailable()) {
-    alert('Banco de dados não disponível neste navegador.');
-    return;
-  }
-  
-  try {
-    const photos = await autoLoadPhotos(sessionId, true);
-    
-    // Limpa as imagens atuais
-    images.length = 0;
-    
-    // Carrega as novas imagens
-    images.push(...photos);
-    
-    // Atualiza a interface
-    updateImagePreviews();
-    
-    // Carrega a primeira imagem no editor
-    if (images.length > 0) {
-      await loadImageInEditor(0);
-    }
-    
-    // Carrega configurações salvas
-    await loadSavedSettings();
-    
-    console.log('Sessão carregada com sucesso');
-  } catch (error) {
-    console.error('Erro ao carregar sessão:', error);
-    alert('Erro ao carregar sessão: ' + error.message);
-  }
-}
-
-// Função para listar sessões salvas
-async function listSavedSessions() {
-  if (!isDatabaseAvailable()) {
-    alert('Banco de dados não disponível neste navegador.');
-    return [];
-  }
-  
-  try {
-    const sessions = await listTempPhotoSessions(currentUser?.uid);
-    return sessions;
-  } catch (error) {
-    console.error('Erro ao listar sessões:', error);
-    alert('Erro ao listar sessões: ' + error.message);
-    return [];
-  }
-}
-
-// Função para obter estatísticas do banco
-async function showDatabaseStats() {
-  if (!isDatabaseAvailable()) {
-    alert('Banco de dados não disponível neste navegador.');
-    return;
-  }
-  
-  try {
-    const stats = await getTempDatabaseStats();
-    const uploadStats = await firebaseStorageManager.getUploadStats();
-    const syncStats = historySync.getSyncStats(currentUser?.uid);
-    
-    const message = `📊 Estatísticas do Sistema:\n\n` +
-      `💾 Método de Upload: ${uploadStats.uploadMethod}\n` +
-      `🔥 Firebase Disponível: ${uploadStats.firebaseAvailable ? 'Sim' : 'Não'}\n` +
-      `🔄 Fallback Ativo: ${uploadStats.fallbackActive ? 'Sim' : 'Não'}\n\n` +
-      `📸 Fotos temporárias: ${stats.tempPhotos}\n` +
-      `⚙️ Configurações: ${stats.tempSettings}\n` +
-      `📝 Histórico: ${stats.tempHistory}\n` +
-      `⏰ Itens expirados: ${stats.expiredItems}\n\n` +
-      `🔄 Sincronização:\n` +
-      `   Firestore: ${syncStats.isFirestoreAvailable ? 'Sim' : 'Não'}\n` +
-      `   Auto-sync: ${syncStats.autoSyncActive ? 'Ativo' : 'Inativo'}\n` +
-      `   Última sync: ${syncStats.lastSyncTime ? new Date(syncStats.lastSyncTime).toLocaleString('pt-BR') : 'Nunca'}\n` +
-      `   Itens locais: ${syncStats.localItemCount}\n\n` +
-      `💾 Dados são mantidos por 24 horas`;
-    
-    alert(message);
-  } catch (error) {
-    console.error('Erro ao obter estatísticas:', error);
-    alert('Erro ao obter estatísticas: ' + error.message);
-  }
-}
-
-// Inicializa o sistema de banco temporário quando a página carrega
-document.addEventListener('DOMContentLoaded', async () => {
-  if (isDatabaseAvailable()) {
-    console.log('Sistema de banco de dados temporário disponível');
-    
-    // Carrega configurações salvas
-    await loadSavedSettings();
-    
-    // Inicia auto-save
-    startAutoSave();
-  } else {
-    console.warn('Banco de dados temporário não disponível neste navegador');
-  }
-});
-
-// Para o auto-save quando a página é fechada
-window.addEventListener('beforeunload', () => {
-  stopAutoSave();
-});
-
-// ===== INTERFACE DO BANCO DE DADOS TEMPORÁRIO =====
-
-// Carrega e exibe as sessões temporárias na interface
-async function loadTempSessionsUI() {
-  if (!isDatabaseAvailable()) return;
-  
-  try {
-    const sessions = await listSavedSessions();
-    const sessionsList = document.getElementById('tempSessionsList');
-    
-    if (sessions.length === 0) {
-      sessionsList.innerHTML = `
-        <div class="temp-session-empty">
-          <h4>📭 Nenhuma sessão salva</h4>
-          <p>Suas sessões de trabalho serão salvas automaticamente aqui por 24 horas.</p>
-        </div>
-      `;
-      return;
-    }
-    
-    sessionsList.innerHTML = sessions.map(session => {
-      const timeRemaining = formatTimeRemaining(session.timeRemaining);
-      const isExpired = session.isExpired;
-      
-      return `
-        <div class="temp-session-item ${isExpired ? 'expired' : ''}" data-id="${session.id}">
-          <div class="temp-session-preview">
-            ${session.photos.slice(0, 3).map(photo => 
-              `<img src="${photo.originalDataURL || photo.workingDataURL}" alt="Preview">`
-            ).join('')}
-            ${session.photos.length > 3 ? `<div style="width: 50px; height: 50px; background: #e2e8f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #64748b;">+${session.photos.length - 3}</div>` : ''}
-          </div>
-          <div class="temp-session-info">
-            <div class="temp-session-id">ID: ${session.id}</div>
-            <div class="temp-session-count">${session.photoCount} foto(s)</div>
-            <div class="temp-session-time ${isExpired ? 'expired' : ''}">
-              ${isExpired ? '⏰ Expirado' : `⏱️ ${timeRemaining}`}
-            </div>
-          </div>
-          <div class="temp-session-actions">
-            <button class="btn load-btn" onclick="loadTempSession('${session.id}')" ${isExpired ? 'disabled' : ''}>
-              ${isExpired ? 'Expirado' : 'Carregar'}
-            </button>
-            <button class="btn delete-btn" onclick="deleteTempSession('${session.id}')">
-              Excluir
-            </button>
-          </div>
-        </div>
-      `;
-    }).join('');
-    
-  } catch (error) {
-    console.error('Erro ao carregar sessões temporárias:', error);
-    const sessionsList = document.getElementById('tempSessionsList');
-    sessionsList.innerHTML = `
-      <div class="temp-session-empty">
-        <h4>❌ Erro ao carregar sessões</h4>
-        <p>Não foi possível carregar as sessões temporárias.</p>
-      </div>
-    `;
-  }
-}
-
-// Carrega uma sessão temporária específica
-async function loadTempSession(sessionId) {
-  try {
-    await loadSession(sessionId);
-    alert('✅ Sessão carregada com sucesso!');
-  } catch (error) {
-    console.error('Erro ao carregar sessão:', error);
-    alert('❌ Erro ao carregar sessão: ' + error.message);
-  }
-}
-
-// Exclui uma sessão temporária
-async function deleteTempSession(sessionId) {
-  if (!confirm('Tem certeza que deseja excluir esta sessão?')) return;
-  
-  try {
-    await deleteTempItem('tempPhotos', sessionId);
-    alert('✅ Sessão excluída com sucesso!');
-    loadTempSessionsUI(); // Recarrega a lista
-  } catch (error) {
-    console.error('Erro ao excluir sessão:', error);
-    alert('❌ Erro ao excluir sessão: ' + error.message);
-  }
-}
-
-// Atualiza a lista de sessões
-async function refreshTempSessions() {
-  await loadTempSessionsUI();
-  alert('🔄 Lista de sessões atualizada!');
-}
-
-// Toggle do painel do banco de dados temporário
-function toggleTempDatabasePanel() {
-  const panel = document.getElementById('tempDatabaseSection');
-  if (panel.classList.contains('show')) {
-    panel.classList.remove('show');
-  } else {
-    panel.classList.add('show');
-    // Carrega as sessões quando o painel é aberto
-    loadTempSessionsUI();
-  }
-}
-
-// Toggle do painel de histórico
-function toggleHistoryPanel() {
-  const panel = document.getElementById('historySection');
-  if (panel.classList.contains('show')) {
-    panel.classList.remove('show');
-  } else {
-    panel.classList.add('show');
-    // Carrega o histórico quando o painel é aberto
-    loadHistoryUI();
-  }
-}
-
-// Fecha o painel de histórico
-function closeHistoryPanel() {
-  const panel = document.getElementById('historySection');
-  panel.classList.remove('show');
-}
-
-// Sincroniza histórico manualmente
-async function syncHistoryManually() {
-  if (!currentUser) {
-    alert('Você precisa estar logado para sincronizar.');
-    return;
-  }
-  
-  try {
-    const syncBtn = document.getElementById('syncHistory');
-    const originalText = syncBtn.textContent;
-    syncBtn.textContent = '🔄 Sincronizando...';
-    syncBtn.disabled = true;
-    
-    await historySync.syncHistory(currentUser.uid);
-    await loadHistoryUI();
-    
-    alert('✅ Histórico sincronizado com sucesso!');
-  } catch (error) {
-    console.error('Erro na sincronização:', error);
-    alert('❌ Erro ao sincronizar histórico: ' + error.message);
-  } finally {
-    const syncBtn = document.getElementById('syncHistory');
-    syncBtn.textContent = '🔄 Sincronizar';
-    syncBtn.disabled = false;
-  }
-}
-
-// Carrega e atualiza a interface do histórico
-async function loadHistoryUI() {
-  if (!currentUser) return;
-  
-  try {
-    await loadPhotoHistory();
-    updateHistoryUI();
-  } catch (error) {
-    console.error('Erro ao carregar interface do histórico:', error);
-  }
-}
-
-// Inicializa os event listeners da interface
-function initTempDatabaseUI() {
-  // Botão para salvar sessão atual
-  document.getElementById('saveCurrentSession')?.addEventListener('click', async () => {
-    try {
-      const sessionId = await saveCurrentSession();
-      if (sessionId) {
-        loadTempSessionsUI(); // Recarrega a lista
-      }
-    } catch (error) {
-      console.error('Erro ao salvar sessão:', error);
-    }
-  });
-  
-  // Botão para mostrar estatísticas
-  document.getElementById('showDatabaseStats')?.addEventListener('click', showDatabaseStats);
-  
-  // Botão para atualizar lista
-  document.getElementById('refreshSessions')?.addEventListener('click', refreshTempSessions);
-}
-
-// Torna as funções globais para uso na interface
-window.saveCurrentSession = saveCurrentSession;
-window.loadSession = loadSession;
-window.listSavedSessions = listSavedSessions;
-window.showDatabaseStats = showDatabaseStats;
-window.loadTempSession = loadTempSession;
-window.deleteTempSession = deleteTempSession;
-window.refreshTempSessions = refreshTempSessions;
 
 // Botão de teste para o sistema do Spotify
 document.getElementById('testSpotifyBtn')?.addEventListener('click', async () => {
