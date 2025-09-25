@@ -1,19 +1,14 @@
-/**
- * Sistema de Upload para Firebase Storage com Fallback para Banco Temporário
- * Resolve problemas de CORS em desenvolvimento local
+/**␊
+ * Sistema de Upload para Firebase Storage com fallback para ImgBB
+ * Resolve problemas de CORS em desenvolvimento local e gera links públicos
  */
-
-import { 
-  saveCurrentPhotosToTemp, 
-  saveToTempHistory,
-  getTempDatabaseStats 
-} from './databaseHelpers.js';
 
 class FirebaseStorageManager {
   constructor() {
     this.isFirebaseAvailable = false;
     this.isStorageAvailable = false;
-    this.fallbackToTempDB = true;
+    this.preferFirebase = true;
+    this.imgbbApiKey = '577c2393e14ed016f7e4d05a6cf2ffed';
     this.init();
   }
 
@@ -25,12 +20,12 @@ class FirebaseStorageManager {
         this.isStorageAvailable = true;
         console.log('✅ Firebase Storage disponível');
       } else {
-        console.warn('⚠️ Firebase Storage não disponível, usando banco temporário');
-        this.fallbackToTempDB = true;
+        console.warn('⚠️ Firebase Storage não disponível, usando ImgBB');
+        this.preferFirebase = false;
       }
     } catch (error) {
       console.error('Erro ao inicializar Firebase Storage:', error);
-      this.fallbackToTempDB = true;
+      this.preferFirebase = false;
     }
   }
 
@@ -43,26 +38,16 @@ class FirebaseStorageManager {
    * @returns {Promise<Object>} Resultado do upload
    */
   async uploadImage(blob, fileName, folder = 'images', userId = null) {
-    try {
-      // Tenta Firebase Storage primeiro
-      if (this.isStorageAvailable && !this.fallbackToTempDB) {
+    if (this.isStorageAvailable && this.preferFirebase && userId) {
+      try {
         return await this.uploadToFirebase(blob, fileName, folder, userId);
-      } else {
-        // Fallback para banco temporário
-        return await this.uploadToTempDB(blob, fileName, folder, userId);
+      } catch (error) {
+        console.warn('Erro no Firebase Storage, usando ImgBB como fallback:', error);
+        this.preferFirebase = false;
       }
-    } catch (error) {
-      console.error('Erro no upload:', error);
-      
-      // Se Firebase falhar, tenta banco temporário
-      if (this.isStorageAvailable && !this.fallbackToTempDB) {
-        console.log('Firebase falhou, usando banco temporário como fallback');
-        this.fallbackToTempDB = true;
-        return await this.uploadToTempDB(blob, fileName, folder, userId);
-      }
-      
-      throw error;
     }
+
+    return await this.uploadToImgbb(blob, fileName);
   }
 
   /**
@@ -98,68 +83,71 @@ class FirebaseStorageManager {
     } catch (error) {
       console.error('Erro no upload Firebase:', error);
       
-      // Se for erro de CORS, marca para usar fallback
       if (error.message.includes('CORS') || error.message.includes('blocked')) {
-        console.log('Erro de CORS detectado, ativando fallback');
-        this.fallbackToTempDB = true;
+        console.log('Erro de CORS detectado, ativando fallback para ImgBB');
+        this.preferFirebase = false;
       }
-      
+
       throw error;
     }
   }
 
-  /**
-   * Upload para banco temporário (fallback)
+      /**
+   * Upload para ImgBB (fallback público)
    */
-  async uploadToTempDB(blob, fileName, folder, userId) {
-    try {
-      // Converte blob para DataURL
-      const dataURL = await this.blobToDataURL(blob);
-      
-      // Cria item do histórico
-      const historyItem = {
-        type: 'uploaded_image',
-        folder: folder,
-        fileName: fileName,
-        dataURL: dataURL,
-        size: blob.size,
-        uploadedAt: new Date().toISOString()
-      };
-      
-      // Salva no histórico temporário
-      const itemId = await saveToTempHistory(historyItem, userId);
-      
-      // Gera uma prévia pequena para UI (evita estourar localStorage)
-      const previewDataURL = await this.createPreviewFromBlob(blob, 140);
-
-      return {
-        success: true,
-        url: dataURL,
-        path: `temp/${itemId}`,
-        method: 'tempdb',
-        fileName: fileName,
-        size: blob.size,
-        itemId: itemId,
-        previewDataURL
-      };
-    } catch (error) {
-      console.error('Erro no upload para banco temporário:', error);
-      throw error;
+  async uploadToImgbb(blob, fileName) {
+    if (!this.imgbbApiKey) {
+      throw new Error('Chave da API ImgBB não configurada.');
     }
+
+    const base64 = await this.blobToBase64(blob);
+    const formData = new FormData();
+    formData.append('image', base64);
+    formData.append('name', fileName.replace(/\.[^.]+$/, ''));
+
+    const response = await fetch(`https://api.imgbb.com/1/upload?key=${this.imgbbApiKey}`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`ImgBB respondeu com status ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error?.message || 'Falha ao enviar imagem para ImgBB');
+    }
+
+    const previewDataURL = data.data.thumb?.url || data.data.url;
+
+    return {
+      success: true,
+      url: data.data.url,
+      path: data.data.id,
+      method: 'imgbb',
+      fileName: fileName,
+      size: blob.size,
+      deleteUrl: data.data.delete_url,
+      previewDataURL
+    };
   }
 
   /**
-   * Converte Blob para DataURL
+   * Converte Blob para base64 bruto (sem cabeçalho DataURL)
    */
-  blobToDataURL(blob) {
+  blobToBase64(blob) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
+      reader.onload = () => {
+        const result = reader.result || '';
+        const base64 = typeof result === 'string' ? result.split(',').pop() : '';
+        resolve(base64 || '');
+      };
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
   }
-
   /**
    * Salva folha 3x4 (com fallback automático)
    */
@@ -370,49 +358,11 @@ class FirebaseStorageManager {
       }
     }
   }
-
-  /**
-   * Obtém estatísticas do sistema de upload
-   */
-  async getUploadStats() {
-    const tempStats = await getTempDatabaseStats();
-    
-    return {
-      firebaseAvailable: this.isStorageAvailable,
-      fallbackActive: this.fallbackToTempDB,
-      tempDatabaseStats: tempStats,
-      uploadMethod: this.fallbackToTempDB ? 'Banco Temporário' : 'Firebase Storage'
-    };
-  }
-
-  /**
-   * Força o uso do banco temporário
-   */
-  forceTempDB() {
-    this.fallbackToTempDB = true;
-    console.log('Forçando uso do banco temporário');
-  }
-
-  /**
-   * Tenta reativar Firebase Storage
-   */
-  async tryFirebaseAgain() {
-    try {
-      if (window.firebaseAuth && window.firebaseStorage) {
-        this.isStorageAvailable = true;
-        this.fallbackToTempDB = false;
-        console.log('✅ Firebase Storage reativado');
-        return true;
-      }
-    } catch (error) {
-      console.error('Erro ao reativar Firebase:', error);
-    }
-    return false;
-  }
 }
 
 // Cria instância global
 const firebaseStorageManager = new FirebaseStorageManager();
 
 export default firebaseStorageManager;
+
 
